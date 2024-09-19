@@ -25,36 +25,63 @@
         .signature {
             margin-top: 20px;
         }
+        #debug {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+        }
     </style>
 </head>
 <body>
     <input type="file" id="excelFile" accept=".xlsx, .xls">
+    <div id="debug"></div>
     <div id="reportContainer"></div>
 
     <script>
+        const debugElement = document.getElementById('debug');
+        function log(message) {
+            console.log(message);
+            debugElement.innerHTML += message + '<br>';
+        }
+
         document.getElementById('excelFile').addEventListener('change', handleFileSelect);
 
         function handleFileSelect(event) {
+            log('קובץ נבחר');
             const file = event.target.files[0];
             const reader = new FileReader();
             reader.onload = function(e) {
+                log('קובץ נקרא');
                 const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-                generateReports(jsonData);
+                try {
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    log('קובץ Excel נקרא בהצלחה');
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                    log('נתונים הומרו ל-JSON');
+                    log('מספר שורות: ' + jsonData.length);
+                    generateReports(jsonData);
+                } catch (error) {
+                    log('שגיאה בקריאת הקובץ: ' + error.message);
+                }
+            };
+            reader.onerror = function(e) {
+                log('שגיאה בקריאת הקובץ: ' + e.target.error.name);
             };
             reader.readAsArrayBuffer(file);
         }
 
         function generateReports(data) {
+            log('מתחיל ליצור דוחות');
             const headers = data[0];
             const reportContainer = document.getElementById('reportContainer');
             reportContainer.innerHTML = '';
 
             for (let i = 1; i < data.length; i++) {
                 const row = data[i];
+                log('יוצר דוח עבור שורה ' + i);
                 const report = createReport(headers, row);
                 reportContainer.appendChild(report);
 
@@ -65,6 +92,9 @@
                     link.download = `report_${i}.png`;
                     link.textContent = `הורד דוח ${i}`;
                     reportContainer.appendChild(link);
+                    log('דוח ' + i + ' נוצר ונוסף להורדה');
+                }).catch(error => {
+                    log('שגיאה ביצירת תמונה לדוח ' + i + ': ' + error.message);
                 });
             }
         }
